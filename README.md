@@ -19,3 +19,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/
 ```cmd
 loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()
 ```
+---
+## Speedhack & Super Jump:
+```cmd
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/SpeedAndJumpModifier.lua"))()
+```
