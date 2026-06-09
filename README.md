@@ -14,3 +14,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/
 ```cmd
 loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/sUNC-TestSuite.lua"))()
 ```
+---
+## Aimbot Script:
+```cmd
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()
+```
