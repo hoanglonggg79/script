@@ -1,5 +1,11 @@
-# script
+# LOADER MENU :
+```cmd
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/loader.lua"))()
+```
+- or manually select the script below
+
 ---
+
 ## ESP Script:
 ```cmd
 loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/ESP.lua"))()
