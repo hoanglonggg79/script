@@ -1,4 +1,4 @@
-# LOADER MENU :
+# LOADER MENU (RECOMMEND):
 ```cmd
 loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/loader.lua"))()
 ```
@@ -29,4 +29,10 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/
 ## Speedhack & Super Jump:
 ```cmd
 loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/SpeedAndJumpModifier.lua"))()
+```
+
+---
+## Aura Script:
+```cmd
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aura.lua"))()
 ```
