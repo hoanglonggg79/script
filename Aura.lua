@@ -1,6 +1,3 @@
-============================================
-= Aura script by HoangLong
-============================================
 local AURA_RADIUS = 12 -- Khoảng cách quét (Đừng để quá cao kẻo bị kick)
 local KNOCKBACK_POWER = 150 -- Lực đẩy văng (Càng cao bay càng xa)
 
