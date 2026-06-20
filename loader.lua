@@ -36,7 +36,7 @@ local ScriptsData = {
     {name = "Aimbot Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()', status = "BROKEN", desc = "Auto aim assist (Currently not working)"},
     {name = "Speedhack & Super Jump", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/SpeedAndJumpModifier.lua"))()', status = "READY", desc = "Increase movement speed and jump height"},
     {name = "Super Admin Tools", src = "", status = "LOCKED", desc = "Admin commands coming soon"},
-    {name = "Aura & Hitbox Expander", src = "", status = "LOCKED", desc = "Combat enhancements coming soon"},
+    {name = "Aura & Hitbox Expander", src = "loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aura.lua"))()', status = "READY", desc = "Powerful Push Aura and Hitbox Expander"},
     {name = "Teleport Hub", src = "", status = "LOCKED", desc = "Quick teleport to locations"},
     {name = "Auto Farm System", src = "", status = "LOCKED", desc = "Automatic farming features"},
     {name = "Visual Mod Pack", src = "", status = "LOCKED", desc = "Chams, tracer, effects pack"},
