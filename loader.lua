@@ -33,7 +33,7 @@ local ScriptsData = {
     {name = "ESP Script (Hub)", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/ESP.lua"))()', status = "READY", desc = "Highlight players, show health, distance"},
     {name = "Music Player Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Music-Player.lua"))()', status = "READY", desc = "Play music, control volume, queue songs"},
     {name = "sUNC Test Suite Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/sUNC-TestSuite.lua"))()', status = "BETA", desc = "Test UNC compatibility and features"},
-    {name = "Aimbot Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()', status = "BROKEN", desc = "Auto aim assist (Currently not working)"},
+    {name = "Aimbot Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()', status = "READY", desc = "Auto aim assist v2 — smooth aim, FOV, sticky target, silent hook"},
     {name = "Speedhack & Super Jump", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/SpeedAndJumpModifier.lua"))()', status = "READY", desc = "Increase movement speed and jump height"},
     {name = "Super Admin Tools", src = "", status = "LOCKED", desc = "Admin commands coming soon"},
     {name = "Aura & Hitbox Expander", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aura.lua"))()', status = "READY", desc = "Powerful Push Aura and Hitbox Expander"},
