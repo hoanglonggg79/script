@@ -211,7 +211,9 @@ local function CheckIfBad(Inst)
 	-- Model
 	elseif Inst:IsA("Model") then
 		if _G.Settings.Other["Low Quality Models"] then
-			Inst.LevelOfDetail = Enum.ModelLevelOfDetail.Level01
+			pcall(function()
+				Inst.LevelOfDetail = Enum.ModelLevelOfDetail.StreamingMesh
+			end)
 		end
 
 	-- Sound
