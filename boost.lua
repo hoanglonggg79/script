@@ -231,7 +231,10 @@ if _G.Settings.Other["Low Water Graphics"] then
 		terrain.WaterWaveSpeed = 0
 		terrain.WaterReflectance = 0
 		terrain.WaterTransparency = 1
-		terrain.Decoration = false
+		
+		pcall(function()
+			terrain.Decoration = false
+		end)
 		pcall(function()
 			if sethiddenproperty then
 				sethiddenproperty(terrain, "Decoration", false)
