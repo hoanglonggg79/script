@@ -35,7 +35,7 @@ local ScriptsData = {
     {name = "sUNC Test Suite Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/sUNC-TestSuite.lua"))()', status = "BETA", desc = "Test UNC compatibility and features"},
     {name = "Aimbot Script", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aimbot.lua"))()', status = "READY", desc = "Auto aim assist v2 — smooth aim, FOV, sticky target, silent hook"},
     {name = "Speedhack & Super Jump", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/SpeedAndJumpModifier.lua"))()', status = "READY", desc = "Increase movement speed and jump height"},
-    {name = "Super Admin Tools", src = "", status = "LOCKED", desc = "Admin commands coming soon"},
+    {name = "Potato Graphics Boost", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Potato.lua"))()', status = "READY", desc = "Best Script Fix Lag for Potato PC"},
     {name = "Aura & Hitbox Expander", src = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/hoanglonggg79/script/refs/heads/main/Aura.lua"))()', status = "READY", desc = "Powerful Push Aura and Hitbox Expander"},
     {name = "Teleport Hub", src = "", status = "LOCKED", desc = "Quick teleport to locations"},
     {name = "Auto Farm System", src = "", status = "LOCKED", desc = "Automatic farming features"},
