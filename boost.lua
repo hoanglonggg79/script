@@ -53,7 +53,7 @@ if not _G.Settings then
 			Destroy = false
 		},
 		Other = {
-			["FPS Cap"] = true,              -- true = uncap FPS
+			["FPS Cap"] = true,               -- true = uncap FPS
 			["No Camera Effects"] = true,
 			["No Clothes"] = true,
 			["Low Water Graphics"] = true,
@@ -97,7 +97,7 @@ end
 
 local function DescendantOfIgnore(Inst)
 	for _, v in pairs(_G.Ignore) do
-		if Inst:IsDescendantOf(v) then
+		if type(v) == "userdata" and Inst:IsDescendantOf(v) then
 			return true
 		end
 	end
@@ -128,7 +128,7 @@ local function CheckIfBad(Inst)
 	if _G.Settings.Players["Ignore Tools"] and (Inst:IsA("BackpackItem") or Inst:FindFirstAncestorWhichIsA("BackpackItem")) then return end
 	if _G.Ignore and (table.find(_G.Ignore, Inst) or DescendantOfIgnore(Inst)) then return end
 
-	-- Mesh
+	-- Mesh (SpecialMesh / DataModelMesh)
 	if Inst:IsA("DataModelMesh") then
 		if Inst:IsA("SpecialMesh") then
 			if _G.Settings.Meshes.NoMesh then Inst.MeshId = "" end
@@ -175,8 +175,22 @@ local function CheckIfBad(Inst)
 			Inst:Destroy()
 		end
 
+	-- MeshPart
+	elseif Inst:IsA("MeshPart") then
+		if _G.Settings.MeshParts.LowerQuality or _G.Settings.Other["Lower Quality MeshParts"] then
+			Inst.RenderFidelity = Enum.RenderFidelity.Performance
+			Inst.Reflectance = 0
+			Inst.Material = Enum.Material.SmoothPlastic
+			Inst.CastShadow = false
+		end
+		if _G.Settings.MeshParts.Invisible then
+			Inst.Transparency = 1
+		end
+		if _G.Settings.MeshParts.NoTexture then Inst.TextureID = "" end
+		if _G.Settings.MeshParts.Destroy then Inst:Destroy() end
+
 	-- BasePart thường
-	elseif Inst:IsA("BasePart") and not Inst:IsA("MeshPart") then
+	elseif Inst:IsA("BasePart") then
 		if _G.Settings.Other["Low Quality Parts"] then
 			Inst.Material = Enum.Material.SmoothPlastic
 			Inst.Reflectance = 0
@@ -200,21 +214,6 @@ local function CheckIfBad(Inst)
 			Inst.LevelOfDetail = Enum.ModelLevelOfDetail.Level01
 		end
 
-	-- MeshPart
-	elseif Inst:IsA("MeshPart") then
-		if _G.Settings.MeshParts.LowerQuality or _G.Settings.Other["Lower Quality MeshParts"] then
-			Inst.RenderFidelity = Enum.RenderFidelity.Performance
-			Inst.Reflectance = 0
-			Inst.Material = Enum.Material.SmoothPlastic
-			Inst.CastShadow = false
-		end
-		if _G.Settings.MeshParts.Invisible then
-			Inst.Transparency = 1
-		end
-		if _G.Settings.MeshParts.NoTexture then Inst.TextureID = "" end
-		if _G.Settings.MeshParts.NoMesh then Inst.MeshId = "" end
-		if _G.Settings.MeshParts.Destroy then Inst:Destroy() end
-
 	-- Sound
 	elseif Inst:IsA("Sound") and _G.Settings.Other["Mute Sounds"] then
 		Inst.Volume = 0
@@ -222,7 +221,7 @@ local function CheckIfBad(Inst)
 	end
 end
 
-Notify("Potato Mode", "Đang tải FPS Booster...", 8)
+Notify("Potato Mode", "Đang tải FPS Booster...", 5)
 
 -- Low Water Graphics
 if _G.Settings.Other["Low Water Graphics"] then
@@ -255,9 +254,7 @@ if _G.Settings.Other["No Shadows"] or _G.Settings.Other["Optimize Lighting"] the
 
 	pcall(function()
 		if sethiddenproperty then
-			sethiddenproperty(Lighting, "Technology", 2) -- Compatibility
-		else
-			Lighting.Technology = Enum.Technology.Legacy
+			sethiddenproperty(Lighting, "Technology", Enum.Technology.Compatibility)
 		end
 	end)
 
@@ -282,7 +279,9 @@ if _G.Settings.Other["Reset Materials"] then
 	for _, v in pairs(MaterialService:GetChildren()) do
 		v:Destroy()
 	end
-	MaterialService.Use2022Materials = false
+	pcall(function()
+		MaterialService.Use2022Materials = false
+	end)
 end
 
 -- Mute Sound Service
@@ -314,18 +313,22 @@ if _G.Settings.Other.ClearNilInstances and getnilinstances then
 end
 
 local Descendants = game:GetDescendants()
-Notify("Potato Mode", "Đang kiểm tra " .. #Descendants .. " objects...", 10)
+Notify("Potato Mode", "Đang kiểm tra " .. #Descendants .. " objects...", 5)
 
-for _, v in pairs(Descendants) do
-	CheckIfBad(v)
-end
+task.spawn(function()
+	for i, v in ipairs(Descendants) do
+		CheckIfBad(v)
+		if i % 1000 == 0 then
+			task.wait() -- Nghỉ mỗi 1000 object để chống giật lag
+		end
+	end
+	Notify("Potato Mode", "FPS Booster Loaded!", 5)
+	print(">>> POTATO MODE LOADED <<<")
+end)
 
+-- Lắng nghe object mới spawn
 game.DescendantAdded:Connect(function(obj)
 	task.defer(function()
-		task.wait(0.1) -- đợi object load xong
 		CheckIfBad(obj)
 	end)
 end)
-
-Notify("Potato Mode", "FPS Booster Loaded! (Hybrid Ultimate)", 8)
-print(">>> POTATO MODE LOADED <<<")
