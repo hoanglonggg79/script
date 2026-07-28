@@ -42,7 +42,7 @@ _G.SendNotifications = true
 _G.ConsoleLogs = true
 
 _G.Ignore = {
-    workspace:WaitForChild("Map") -- Không tối ưu Map
+    workspace:FindFirstChild("Map")
 }
 
 _G.Settings = {
