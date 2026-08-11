@@ -18,21 +18,21 @@ local Config = {
     WalkSpeed      = 16,
     JumpPower      = 50,
     SprintSpeed    = 50,
-    FlySpeed       = 60,
+    FlySpeed       = 50,
 
     MinSpeed       = 16,
-    MaxSpeed       = 200,
+    MaxSpeed       = 400,
     MinJump        = 50,
-    MaxJump        = 300,
+    MaxJump        = 500,
     MinSprint      = 16,
-    MaxSprint      = 300,
+    MaxSprint      = 500,
     MinFly         = 10,
     MaxFly         = 300,
 }
 
-local isSprinting   = false
-local flyBodyVel    = nil
-local flyBodyGyro   = nil
+local flyLinearVel  = nil
+local flyAlignOrient = nil
+local flyAttach     = nil
 local prevGravity   = workspace.Gravity
 
 local function getHumanoid()
@@ -49,9 +49,10 @@ local function resetHumanoid()
 end
 
 local function stopFly()
-    if flyBodyVel  then flyBodyVel:Destroy();  flyBodyVel  = nil end
-    if flyBodyGyro then flyBodyGyro:Destroy(); flyBodyGyro = nil end
-    local hum, char = getHumanoid()
+    if flyLinearVel  then flyLinearVel:Destroy();  flyLinearVel  = nil end
+    if flyAlignOrient then flyAlignOrient:Destroy(); flyAlignOrient = nil end
+    if flyAttach     then flyAttach:Destroy();     flyAttach     = nil end
+    local hum = getHumanoid()
     if hum then hum.PlatformStand = false end
 end
 
@@ -65,26 +66,25 @@ local function startFly()
 
     hum.PlatformStand = true
 
-    flyBodyVel = Instance.new("BodyVelocity")
-    flyBodyVel.Velocity      = Vector3.zero
-    flyBodyVel.MaxForce      = Vector3.new(1e5, 1e5, 1e5)
-    flyBodyVel.Parent        = root
+    -- Constraint-based physics (harder to detect than BodyMovers)
+    flyAttach = Instance.new("Attachment")
+    flyAttach.Parent = root
 
-    flyBodyGyro = Instance.new("BodyGyro")
-    flyBodyGyro.MaxTorque    = Vector3.new(1e5, 1e5, 1e5)
-    flyBodyGyro.P            = 1e4
-    flyBodyGyro.CFrame       = root.CFrame
-    flyBodyGyro.Parent       = root
+    flyLinearVel = Instance.new("LinearVelocity")
+    flyLinearVel.Attachment0    = flyAttach
+    flyLinearVel.RelativeTo     = Enum.ActuatorRelativeTo.World
+    flyLinearVel.VectorVelocity = Vector3.zero
+    flyLinearVel.MaxForce       = math.huge
+    flyLinearVel.Parent         = root
+
+    flyAlignOrient = Instance.new("AlignOrientation")
+    flyAlignOrient.Attachment0   = flyAttach
+    flyAlignOrient.Mode          = Enum.OrientationAlignmentMode.OneAttachment
+    flyAlignOrient.Responsiveness = 10
+    flyAlignOrient.MaxTorque     = 1e5
+    flyAlignOrient.CFrame        = root.CFrame
+    flyAlignOrient.Parent        = root
 end
-
-UserInputService.InputBegan:Connect(function(inp, gpe)
-    if gpe then return end
-    if inp.KeyCode == Enum.KeyCode.LeftShift then isSprinting = true end
-end)
-
-UserInputService.InputEnded:Connect(function(inp)
-    if inp.KeyCode == Enum.KeyCode.LeftShift then isSprinting = false end
-end)
 
 LocalPlayer.CharacterAdded:Connect(function()
     if Config.FlyEnabled then
@@ -98,31 +98,37 @@ RunService.Heartbeat:Connect(function()
     if not hum then return end
 
     if Config.SpeedEnabled then
-        hum.WalkSpeed = (Config.SprintEnabled and isSprinting) and Config.SprintSpeed or Config.WalkSpeed
+        -- Sprint is a toggle (no LeftShift dependency)
+        hum.WalkSpeed = Config.SprintEnabled and Config.SprintSpeed or Config.WalkSpeed
     end
 
     if Config.JumpEnabled then
         hum.JumpPower = Config.JumpPower
     end
 
-    if Config.FlyEnabled and flyBodyVel and flyBodyGyro then
-        local camera    = workspace.CurrentCamera
-        local root      = char:FindFirstChild("HumanoidRootPart")
+    if Config.FlyEnabled and flyLinearVel and flyAlignOrient then
+        local camera = workspace.CurrentCamera
+        local root   = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
 
-        local moveVec   = Vector3.zero
-        local camCF     = camera.CFrame
-        local speed     = Config.FlySpeed
+        local camCF   = camera.CFrame
+        local speed   = Config.FlySpeed
+        local moveDir = hum.MoveDirection -- from joystick / WASD
 
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVec += camCF.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVec -= camCF.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVec -= camCF.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVec += camCF.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVec += Vector3.yAxis end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveVec -= Vector3.yAxis end
+        -- Convert joystick MoveDirection to camera-relative movement
+        local moveVec = Vector3.zero
+        if moveDir.Magnitude > 0.01 then
+            local flat = Vector3.new(moveDir.X, 0, moveDir.Z)
+            if flat.Magnitude > 0.01 then
+                flat = flat.Unit
+                moveVec += camCF.RightVector * flat.X
+                moveVec += camCF.LookVector * -flat.Z
+            end
+            moveVec += Vector3.yAxis * moveDir.Y
+        end
 
-        flyBodyVel.Velocity  = moveVec.Magnitude > 0 and (moveVec.Unit * speed) or Vector3.zero
-        flyBodyGyro.CFrame   = camCF
+        flyLinearVel.VectorVelocity = moveVec.Magnitude > 0 and (moveVec.Unit * speed) or Vector3.zero
+        flyAlignOrient.CFrame       = camCF
     end
 end)
 
@@ -143,8 +149,9 @@ local TEXT_PRI  = Color3.fromRGB(235, 230, 255)
 local TEXT_SEC  = Color3.fromRGB(160, 150, 195)
 local SEP_COL   = Color3.fromRGB(38, 28, 65)
 
-local PANEL_W = 250
-local PANEL_H = 530
+-- Compact panel size (A)
+local PANEL_W = 200
+local PANEL_H = 300
 
 local Panel = Instance.new("Frame")
 Panel.Name             = "Panel"
@@ -156,7 +163,7 @@ Panel.ClipsDescendants = true
 Panel.Parent           = ScreenGui
 do
     local c = Instance.new("UICorner", Panel)
-    c.CornerRadius = UDim.new(0, 14)
+    c.CornerRadius = UDim.new(0, 12)
     local s = Instance.new("UIStroke", Panel)
     s.Color     = Color3.fromRGB(80, 40, 180)
     s.Thickness = 1.2
@@ -177,13 +184,13 @@ Shadow.ZIndex               = -1
 
 local TitleBar = Instance.new("Frame")
 TitleBar.Name             = "TitleBar"
-TitleBar.Size             = UDim2.new(1, 0, 0, 44)
+TitleBar.Size             = UDim2.new(1, 0, 0, 36)
 TitleBar.BackgroundColor3 = PURPLE_DK
 TitleBar.BorderSizePixel  = 0
 TitleBar.Parent           = Panel
 do
     local c = Instance.new("UICorner", TitleBar)
-    c.CornerRadius = UDim.new(0, 14)
+    c.CornerRadius = UDim.new(0, 12)
 
     local grad = Instance.new("UIGradient", TitleBar)
     grad.Color    = ColorSequence.new({
@@ -194,41 +201,42 @@ do
 end
 
 local TitleIcon = Instance.new("TextLabel")
-TitleIcon.Size                   = UDim2.fromOffset(28, 44)
-TitleIcon.Position               = UDim2.fromOffset(12, 0)
+TitleIcon.Size                   = UDim2.fromOffset(24, 36)
+TitleIcon.Position               = UDim2.fromOffset(10, 0)
 TitleIcon.BackgroundTransparency = 1
 TitleIcon.Text                   = "⚡"
 TitleIcon.Font                   = Enum.Font.GothamBold
-TitleIcon.TextSize               = 17
+TitleIcon.TextSize               = 15
 TitleIcon.TextColor3             = Color3.fromRGB(220, 180, 255)
 TitleIcon.Parent                 = TitleBar
 
 local TitleLbl = Instance.new("TextLabel")
-TitleLbl.Size                   = UDim2.new(1, -90, 1, 0)
-TitleLbl.Position               = UDim2.fromOffset(42, 0)
+TitleLbl.Size                   = UDim2.new(1, -80, 1, 0)
+TitleLbl.Position               = UDim2.fromOffset(36, 0)
 TitleLbl.BackgroundTransparency = 1
 TitleLbl.Text                   = "Speed & Jump"
 TitleLbl.Font                   = Enum.Font.GothamBold
-TitleLbl.TextSize               = 14
+TitleLbl.TextSize               = 13
 TitleLbl.TextColor3             = TEXT_PRI
 TitleLbl.TextXAlignment         = Enum.TextXAlignment.Left
 TitleLbl.Parent                 = TitleBar
 
 local WatermarkLbl = Instance.new("TextLabel")
-WatermarkLbl.Size                   = UDim2.new(1, -90, 0, 14)
-WatermarkLbl.Position               = UDim2.new(0, 42, 1, -16)
+WatermarkLbl.Size                   = UDim2.new(1, -80, 0, 12)
+WatermarkLbl.Position               = UDim2.new(0, 36, 1, -13)
 WatermarkLbl.BackgroundTransparency = 1
 WatermarkLbl.Text                   = "By HoangLong"
 WatermarkLbl.Font                   = Enum.Font.Gotham
-WatermarkLbl.TextSize               = 10
+WatermarkLbl.TextSize               = 9
 WatermarkLbl.TextColor3             = Color3.fromRGB(180, 140, 255)
 WatermarkLbl.TextTransparency       = 0.25
 WatermarkLbl.TextXAlignment         = Enum.TextXAlignment.Left
 WatermarkLbl.Parent                 = TitleBar
 
+-- Larger minimize hitbox (44px) for finger-friendly touch (A)
 local MinBtn = Instance.new("TextButton")
-MinBtn.Size                   = UDim2.fromOffset(28, 28)
-MinBtn.Position               = UDim2.new(1, -38, 0.5, -14)
+MinBtn.Size                   = UDim2.fromOffset(44, 44)
+MinBtn.Position               = UDim2.new(1, -50, 0.5, -22)
 MinBtn.BackgroundColor3       = Color3.fromRGB(255, 255, 255)
 MinBtn.BackgroundTransparency = 0.8
 MinBtn.Text                   = "–"
@@ -277,11 +285,17 @@ do
     lbl.TextColor3             = PURPLE_LT
 end
 
+-- Touch + Mouse drag support (B)
+local function isDragInput(inp)
+    return inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch
+end
+
 local function makeDraggable(handle, target, onDragEnd)
     local dragging, dragStart, startPos = false, nil, nil
 
     handle.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        if isDragInput(inp) then
             dragging  = true
             dragStart = inp.Position
             startPos  = target.Position
@@ -289,14 +303,15 @@ local function makeDraggable(handle, target, onDragEnd)
     end)
 
     handle.InputEnded:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        if isDragInput(inp) then
             dragging = false
             if onDragEnd then onDragEnd() end
         end
     end)
 
     UserInputService.InputChanged:Connect(function(inp)
-        if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+        if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement
+            or inp.UserInputType == Enum.UserInputType.Touch) then
             local d = inp.Position - dragStart
             target.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + d.X,
@@ -316,8 +331,8 @@ end)
 
 local Content = Instance.new("ScrollingFrame")
 Content.Name                   = "Content"
-Content.Size                   = UDim2.new(1, 0, 1, -44)
-Content.Position               = UDim2.fromOffset(0, 44)
+Content.Size                   = UDim2.new(1, 0, 1, -36)
+Content.Position               = UDim2.fromOffset(0, 36)
 Content.BackgroundTransparency = 1
 Content.BorderSizePixel        = 0
 Content.ScrollBarThickness     = 3
@@ -328,63 +343,63 @@ Content.Parent                 = Panel
 
 do
     local layout = Instance.new("UIListLayout", Content)
-    layout.Padding             = UDim.new(0, 6)
+    layout.Padding             = UDim.new(0, 4)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.SortOrder           = Enum.SortOrder.LayoutOrder
 
     local pad = Instance.new("UIPadding", Content)
-    pad.PaddingTop    = UDim.new(0, 12)
-    pad.PaddingLeft   = UDim.new(0, 12)
-    pad.PaddingRight  = UDim.new(0, 12)
-    pad.PaddingBottom = UDim.new(0, 12)
+    pad.PaddingTop    = UDim.new(0, 8)
+    pad.PaddingLeft   = UDim.new(0, 8)
+    pad.PaddingRight  = UDim.new(0, 8)
+    pad.PaddingBottom = UDim.new(0, 8)
 end
 
 local TI_TOGGLE = TweenInfo.new(0.15, Enum.EasingStyle.Quad)
 
 local function makeToggle(icon, label, initState, onToggle)
     local row = Instance.new("Frame")
-    row.Size             = UDim2.new(1, 0, 0, 36)
+    row.Size             = UDim2.new(1, 0, 0, 30)
     row.BackgroundColor3 = BG_ROW
     row.BorderSizePixel  = 0
     row.Parent           = Content
     do
         local c = Instance.new("UICorner", row)
-        c.CornerRadius = UDim.new(0, 8)
+        c.CornerRadius = UDim.new(0, 7)
         local pad = Instance.new("UIPadding", row)
-        pad.PaddingLeft  = UDim.new(0, 10)
-        pad.PaddingRight = UDim.new(0, 10)
+        pad.PaddingLeft  = UDim.new(0, 8)
+        pad.PaddingRight = UDim.new(0, 8)
     end
 
     local iconLbl = Instance.new("TextLabel", row)
-    iconLbl.Size                   = UDim2.fromOffset(22, 36)
+    iconLbl.Size                   = UDim2.fromOffset(20, 30)
     iconLbl.Position               = UDim2.fromOffset(0, 0)
     iconLbl.BackgroundTransparency = 1
     iconLbl.Text                   = icon
     iconLbl.Font                   = Enum.Font.GothamBold
-    iconLbl.TextSize               = 15
+    iconLbl.TextSize               = 13
     iconLbl.TextColor3             = PURPLE_LT
 
     local lbl = Instance.new("TextLabel", row)
-    lbl.Size               = UDim2.new(1, -90, 1, 0)
-    lbl.Position           = UDim2.fromOffset(28, 0)
+    lbl.Size               = UDim2.new(1, -80, 1, 0)
+    lbl.Position           = UDim2.fromOffset(24, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text               = label
     lbl.Font               = Enum.Font.Gotham
-    lbl.TextSize           = 13
+    lbl.TextSize           = 12
     lbl.TextColor3         = TEXT_PRI
     lbl.TextXAlignment     = Enum.TextXAlignment.Left
 
     local track = Instance.new("Frame", row)
-    track.Size             = UDim2.fromOffset(44, 22)
-    track.Position         = UDim2.new(1, -44, 0.5, -11)
+    track.Size             = UDim2.fromOffset(40, 20)
+    track.Position         = UDim2.new(1, -40, 0.5, -10)
     track.BorderSizePixel  = 0
     track.BackgroundColor3 = initState and PURPLE or Color3.fromRGB(45, 38, 68)
     do Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0) end
 
     local thumb = Instance.new("Frame", track)
-    thumb.Size             = UDim2.fromOffset(18, 18)
+    thumb.Size             = UDim2.fromOffset(16, 16)
     thumb.AnchorPoint      = Vector2.new(0, 0.5)
-    thumb.Position         = initState and UDim2.new(1, -20, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+    thumb.Position         = initState and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
     thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     thumb.BorderSizePixel  = 0
     do
@@ -407,7 +422,7 @@ local function makeToggle(icon, label, initState, onToggle)
             BackgroundColor3 = state and PURPLE or Color3.fromRGB(45, 38, 68)
         }):Play()
         TweenService:Create(thumb, TI_TOGGLE, {
-            Position = state and UDim2.new(1, -20, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+            Position = state and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
         }):Play()
         onToggle(state)
     end)
@@ -422,52 +437,52 @@ end
 
 local function makeSlider(icon, label, min, max, init, onChanged)
     local container = Instance.new("Frame", Content)
-    container.Size                   = UDim2.new(1, 0, 0, 56)
+    container.Size                   = UDim2.new(1, 0, 0, 44)
     container.BackgroundColor3       = BG_ROW
     container.BorderSizePixel        = 0
     do
         local c = Instance.new("UICorner", container)
-        c.CornerRadius = UDim.new(0, 8)
+        c.CornerRadius = UDim.new(0, 7)
         local pad = Instance.new("UIPadding", container)
-        pad.PaddingLeft  = UDim.new(0, 10)
-        pad.PaddingRight = UDim.new(0, 10)
-        pad.PaddingTop   = UDim.new(0, 6)
+        pad.PaddingLeft  = UDim.new(0, 8)
+        pad.PaddingRight = UDim.new(0, 8)
+        pad.PaddingTop   = UDim.new(0, 4)
     end
 
     local topRow = Instance.new("Frame", container)
-    topRow.Size                   = UDim2.new(1, 0, 0, 20)
+    topRow.Size                   = UDim2.new(1, 0, 0, 18)
     topRow.BackgroundTransparency = 1
 
     local iconLbl = Instance.new("TextLabel", topRow)
-    iconLbl.Size                   = UDim2.fromOffset(20, 20)
+    iconLbl.Size                   = UDim2.fromOffset(18, 18)
     iconLbl.BackgroundTransparency = 1
     iconLbl.Text                   = icon
     iconLbl.Font                   = Enum.Font.GothamBold
-    iconLbl.TextSize               = 13
+    iconLbl.TextSize               = 12
     iconLbl.TextColor3             = PURPLE_LT
 
     local lbl = Instance.new("TextLabel", topRow)
-    lbl.Size               = UDim2.new(1, -68, 1, 0)
-    lbl.Position           = UDim2.fromOffset(24, 0)
+    lbl.Size               = UDim2.new(1, -60, 1, 0)
+    lbl.Position           = UDim2.fromOffset(22, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text               = label
     lbl.Font               = Enum.Font.Gotham
-    lbl.TextSize           = 12
+    lbl.TextSize           = 11
     lbl.TextColor3         = TEXT_SEC
     lbl.TextXAlignment     = Enum.TextXAlignment.Left
 
     local valBox = Instance.new("TextBox", topRow)
-    valBox.Size                   = UDim2.fromOffset(46, 20)
-    valBox.Position               = UDim2.new(1, -46, 0, 0)
+    valBox.Size                   = UDim2.fromOffset(40, 18)
+    valBox.Position               = UDim2.new(1, -40, 0, 0)
     valBox.BackgroundColor3       = Color3.fromRGB(28, 22, 50)
     valBox.BorderSizePixel        = 0
     valBox.Text                   = tostring(init)
     valBox.Font                   = Enum.Font.GothamBold
-    valBox.TextSize               = 12
+    valBox.TextSize               = 11
     valBox.TextColor3             = PURPLE_LT
     valBox.TextXAlignment         = Enum.TextXAlignment.Center
     do
-        Instance.new("UICorner", valBox).CornerRadius = UDim.new(0, 5)
+        Instance.new("UICorner", valBox).CornerRadius = UDim.new(0, 4)
         local s = Instance.new("UIStroke", valBox)
         s.Color     = Color3.fromRGB(80, 50, 160)
         s.Thickness = 1
@@ -476,7 +491,7 @@ local function makeSlider(icon, label, min, max, init, onChanged)
 
     local track = Instance.new("Frame", container)
     track.Size             = UDim2.new(1, 0, 0, 5)
-    track.Position         = UDim2.new(0, 0, 0, 38)
+    track.Position         = UDim2.new(0, 0, 0, 30)
     track.BackgroundColor3 = Color3.fromRGB(35, 28, 60)
     track.BorderSizePixel  = 0
     do Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0) end
@@ -521,23 +536,25 @@ local function makeSlider(icon, label, min, max, init, onChanged)
         onChanged(v)
     end
 
+    -- Touch + Mouse slider support (B)
     thumb.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then sliderDrag = true end
+        if isDragInput(inp) then sliderDrag = true end
     end)
 
     UserInputService.InputEnded:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then sliderDrag = false end
+        if isDragInput(inp) then sliderDrag = false end
     end)
 
     UserInputService.InputChanged:Connect(function(inp)
-        if sliderDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+        if sliderDrag and (inp.UserInputType == Enum.UserInputType.MouseMovement
+            or inp.UserInputType == Enum.UserInputType.Touch) then
             local relX = math.clamp(inp.Position.X - track.AbsolutePosition.X, 0, track.AbsoluteSize.X)
             applyValue(min + (relX / track.AbsoluteSize.X) * (max - min))
         end
     end)
 
     track.InputBegan:Connect(function(inp)
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        if isDragInput(inp) then
             local relX = math.clamp(inp.Position.X - track.AbsolutePosition.X, 0, track.AbsoluteSize.X)
             applyValue(min + (relX / track.AbsoluteSize.X) * (max - min))
         end
@@ -551,7 +568,7 @@ end
 
 local function makeSectionLabel(text)
     local lbl = Instance.new("TextLabel", Content)
-    lbl.Size                   = UDim2.new(1, 0, 0, 18)
+    lbl.Size                   = UDim2.new(1, 0, 0, 16)
     lbl.BackgroundTransparency = 1
     lbl.Text                   = text
     lbl.Font                   = Enum.Font.GothamBold
@@ -572,7 +589,7 @@ end)
 
 makeSep()
 
-makeToggle("⚡", "Sprint (giữ Shift)", Config.SprintEnabled, function(v)
+makeToggle("⚡", "Sprint (Toggle)", Config.SprintEnabled, function(v)
     Config.SprintEnabled = v
 end)
 makeSlider("🔥", "SprintSpeed", Config.MinSprint, Config.MaxSprint, Config.SprintSpeed, function(v)
@@ -593,7 +610,7 @@ end)
 makeSep()
 
 makeSectionLabel("  SPECIAL")
-makeToggle("🕊️", "Bay (WASD + Space/Ctrl)", Config.FlyEnabled, function(v)
+makeToggle("🕊️", "Bay (Joystick)", Config.FlyEnabled, function(v)
     Config.FlyEnabled = v
     if v then startFly() else stopFly() end
 end)
