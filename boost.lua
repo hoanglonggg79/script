@@ -1,6 +1,7 @@
 -- [[ 
---   POTATO MODE FPS BOOSTER
---   Scr by : HoangLong
+--   POTATO MODE SCRIPT
+--   Version: 1.1.0
+--   Created by: HoangLong
 --   Youtube: https://www.youtube.com/@LongHoang-2105/
 --   GitHub : https://github.com/hoanglonggg79
 -- ]]
@@ -17,58 +18,59 @@ if _G.ConsoleLogs == nil then
 	_G.ConsoleLogs = false
 end
 
--- Defaul Config
 if not _G.Settings then
 	_G.Settings = {
 		Players = {
-			["Ignore Me"] = true,        -- false = tối ưu cả bản thân
-			["Ignore Others"] = false,   -- false = tối ưu người khác
-			["Ignore Tools"] = true
+			["Ignore Me"] = false,       
+			["Ignore Others"] = false,   
+			["Ignore Tools"] = true      
 		},
 		Meshes = {
-			NoMesh = false,
-			NoTexture = true,
-			Destroy = false
+			NoMesh = true,               
+			NoTexture = true,            
+			Destroy = true               
 		},
 		Images = {
-			Invisible = true,
-			Destroy = false
+			Invisible = true,            
+			Destroy = true               
 		},
 		Explosions = {
-			Smaller = true,
-			Invisible = false,
-			Destroy = false
+			Smaller = true,              
+			Invisible = true,            
+			Destroy = true               
 		},
 		Particles = {
-			Invisible = true,
-			Destroy = true
+			Invisible = true,            
+			Destroy = true               
 		},
 		TextLabels = {
-			LowerQuality = true,
-			Invisible = false,
-			Destroy = false
+			LowerQuality = true,         
+			Invisible = true,            
+			Destroy = true               
 		},
 		MeshParts = {
-			LowerQuality = true,
-			Invisible = false,
-			NoTexture = true,
-			NoMesh = false,
-			Destroy = false
+			LowerQuality = true,         
+			Invisible = true,            
+			NoTexture = true,            
+			NoMesh = true,               
+			Destroy = true               
 		},
 		Other = {
-			["FPS Cap"] = true,               -- true = uncap FPS
+			["FPS Cap"] = 999,           
 			["No Camera Effects"] = true,
-			["No Clothes"] = false,
+			["No Clothes"] = true,       
 			["Low Water Graphics"] = true,
-			["No Shadows"] = true,
-			["Low Rendering"] = true,
+			["No Shadows"] = true,       
+			["Low Rendering"] = true,    
 			["Low Quality Parts"] = true,
 			["Low Quality Models"] = true,
-			["Reset Materials"] = true,
-			["Lower Quality MeshParts"] = true,
-			["Mute Sounds"] = false,
+			["Reset Materials"] = true,  
+			["Lower Quality MeshParts"] = true, 
+			["Mute Sounds"] = true,      
 			["Optimize Lighting"] = true,
-			ClearNilInstances = false
+			ClearNilInstances = true,    
+			AutoReapply = true,          
+			AutoReapplyInterval = 15     
 		}
 	}
 end
@@ -77,7 +79,6 @@ if not game:IsLoaded() then
 	repeat task.wait() until game:IsLoaded()
 end
 
---  SERVICE REFERENCES
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local StarterGui = game:GetService("StarterGui")
@@ -88,9 +89,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local StarterPack = game:GetService("StarterPack")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local ME = Players.LocalPlayer
 
--- CACHED ENUM VALUES
 local EnumRenderFidelityPerformance = Enum.RenderFidelity.Performance
 local EnumMaterialSmoothPlastic = Enum.Material.SmoothPlastic
 local EnumFontSourceSans = Enum.Font.SourceSans
@@ -104,16 +105,33 @@ local CanBeEnabledSet = {
 	Sparkles = true
 }
 
--- STATE TRACKING
-local VERSION = "1.0.0"
+local VERSION = "1.1.0"
 local TotalScanned = 0
 local TotalOptimized = 0
+local TotalDestroyed = 0
 local TotalSkipped = 0
 local MeshPartsProcessed = 0
 local SoundsMuted = 0
 local ParticlesDisabled = 0
 
--- CACHED CHARACTER TRACKING
+local function isGodModeActive()
+	local s = _G.Settings
+	if not s then return false end
+	if (s.Meshes and s.Meshes.Destroy)
+		or (s.MeshParts and s.MeshParts.Destroy)
+		or (s.Images and s.Images.Destroy)
+		or (s.Particles and s.Particles.Destroy)
+		or (s.Explosions and s.Explosions.Destroy)
+		or (s.TextLabels and s.TextLabels.Destroy)
+		or (s.Other and s.Other["No Clothes"])
+		or (s.Other and s.Other["Mute Sounds"])
+		or (s.Other and s.Other.ClearNilInstances)
+		or (s.Players and s.Players["Ignore Me"] == false) then
+		return true
+	end
+	return false
+end
+
 local OtherCharacters = {}
 local MyCharacter = ME.Character
 
@@ -159,7 +177,6 @@ ME.CharacterRemoving:Connect(function()
 	MyCharacter = nil
 end)
 
--- CACHED IGNORE TRACKING
 local IgnoreSet = {}
 local IgnoreInstances = {}
 
@@ -174,7 +191,6 @@ for _, v in ipairs(_G.Ignore) do
 	addIgnore(v)
 end
 
--- Monitor dynamic additions to _G.Ignore
 pcall(function()
 	local mt = getmetatable(_G.Ignore) or {}
 	local original_newindex = mt.__newindex
@@ -189,7 +205,6 @@ pcall(function()
 	setmetatable(_G.Ignore, mt)
 end)
 
--- HIERARCHY STATUS CHECK
 local function shouldSkipInstance(Inst)
 	if IgnoreSet[Inst] then return true end
 
@@ -216,7 +231,6 @@ local function shouldSkipInstance(Inst)
 	return false
 end
 
--- NOTIFICATION HELPERS
 local function Notify(title, text, duration)
 	if _G.SendNotifications then
 		pcall(function()
@@ -232,7 +246,6 @@ local function Notify(title, text, duration)
 	end
 end
 
--- OPTIMIZATION LOGIC
 local function CheckIfBad(Inst)
 	TotalScanned += 1
 
@@ -253,8 +266,8 @@ local function CheckIfBad(Inst)
 
 	local className = Inst.ClassName
 	local optimized = false
+	local destroyed = false
 
-	-- Sound
 	if className == "Sound" then
 		if _G.Settings.Other["Mute Sounds"] then
 			Inst.Volume = 0
@@ -275,131 +288,144 @@ local function CheckIfBad(Inst)
 			optimized = true
 		end
 
-	-- MeshPart
 	elseif className == "MeshPart" then
-		if _G.Settings.MeshParts.LowerQuality or _G.Settings.Other["Lower Quality MeshParts"] then
-			Inst.RenderFidelity = EnumRenderFidelityPerformance
-			Inst.Reflectance = 0
-			Inst.Material = EnumMaterialSmoothPlastic
-			Inst.CastShadow = false
-			optimized = true
-		end
-		if _G.Settings.MeshParts.Invisible then
-			Inst.Transparency = 1
-			optimized = true
-		end
-		if _G.Settings.MeshParts.NoTexture then
-			Inst.TextureID = ""
-			optimized = true
-		end
 		if _G.Settings.MeshParts.Destroy then
 			Inst:Destroy()
+			destroyed = true
 			optimized = true
+		else
+			if _G.Settings.MeshParts.LowerQuality or _G.Settings.Other["Lower Quality MeshParts"] then
+				Inst.RenderFidelity = EnumRenderFidelityPerformance
+				Inst.Reflectance = 0
+				Inst.Material = EnumMaterialSmoothPlastic
+				Inst.CastShadow = false
+				optimized = true
+			end
+			if _G.Settings.MeshParts.Invisible or _G.Settings.MeshParts.NoMesh then
+				Inst.Transparency = 1
+				optimized = true
+			end
+			if _G.Settings.MeshParts.NoTexture then
+				Inst.TextureID = ""
+				optimized = true
+			end
 		end
 		if optimized then
 			MeshPartsProcessed += 1
 		end
 
-	-- SpecialMesh / DataModelMesh
 	elseif Inst:IsA("DataModelMesh") then
-		if className == "SpecialMesh" then
-			if _G.Settings.Meshes.NoMesh then
-				Inst.MeshId = ""
-				optimized = true
-			end
-			if _G.Settings.Meshes.NoTexture then
-				Inst.TextureId = ""
-				optimized = true
-			end
-		end
 		if _G.Settings.Meshes.Destroy then
 			Inst:Destroy()
+			destroyed = true
 			optimized = true
+		else
+			if className == "SpecialMesh" then
+				if _G.Settings.Meshes.NoMesh then
+					Inst.MeshId = ""
+					optimized = true
+				end
+				if _G.Settings.Meshes.NoTexture then
+					Inst.TextureId = ""
+					optimized = true
+				end
+			end
 		end
 
-	-- Decal / Texture
 	elseif className == "Decal" or className == "Texture" then
-		if _G.Settings.Images.Invisible then
+		if _G.Settings.Images.Destroy then
+			Inst:Destroy()
+			destroyed = true
+			optimized = true
+		elseif _G.Settings.Images.Invisible then
 			Inst.Transparency = 1
 			optimized = true
 		end
+
+	elseif className == "ShirtGraphic" then
 		if _G.Settings.Images.Destroy then
 			Inst:Destroy()
+			destroyed = true
 			optimized = true
-		end
-
-	-- ShirtGraphic
-	elseif className == "ShirtGraphic" then
-		if _G.Settings.Images.Invisible then
+		elseif _G.Settings.Images.Invisible then
 			Inst.Graphic = ""
 			optimized = true
 		end
-		if _G.Settings.Images.Destroy then
-			Inst:Destroy()
-			optimized = true
-		end
 
-	-- Particles
 	elseif CanBeEnabledSet[className] then
-		if _G.Settings.Particles.Invisible or _G.Settings.Particles.Destroy then
+		if _G.Settings.Particles.Destroy then
+			Inst:Destroy()
+			destroyed = true
+			ParticlesDisabled += 1
+			optimized = true
+		elseif _G.Settings.Particles.Invisible then
 			Inst.Enabled = false
 			ParticlesDisabled += 1
 			optimized = true
 		end
 
-	-- PostEffect
 	elseif Inst:IsA("PostEffect") then
 		if _G.Settings.Other["No Camera Effects"] then
 			Inst.Enabled = false
 			optimized = true
 		end
 
-	-- Explosion
 	elseif className == "Explosion" then
-		if _G.Settings.Explosions.Smaller then
-			Inst.BlastPressure = 1
-			Inst.BlastRadius = 1
-			optimized = true
-		end
-		if _G.Settings.Explosions.Invisible then
-			Inst.Visible = false
-			optimized = true
-		end
 		if _G.Settings.Explosions.Destroy then
 			Inst:Destroy()
+			destroyed = true
 			optimized = true
-		end
-
-	-- Clothes & SurfaceAppearance
-	elseif className == "Clothing" or className == "SurfaceAppearance" or className == "BaseWrap"
-		or className == "Accessory" or className == "Hat" or className == "CharacterMesh" or className == "BodyColors"
-		or Inst:IsA("Clothing") or Inst:IsA("SurfaceAppearance") or Inst:IsA("BaseWrap") or Inst:IsA("Accessory") then
-		if _G.Settings.Other["No Clothes"] then
-			Inst:Destroy()
-			optimized = true
-		end
-
-	-- TextLabel
-	elseif className == "TextLabel" then
-		if Inst:IsDescendantOf(Workspace) then
-			if _G.Settings.TextLabels.LowerQuality then
-				Inst.Font = EnumFontSourceSans
-				Inst.TextScaled = false
-				Inst.RichText = false
-				Inst.TextSize = 14
+		else
+			if _G.Settings.Explosions.Smaller then
+				Inst.BlastPressure = 1
+				Inst.BlastRadius = 1
 				optimized = true
 			end
-			if _G.Settings.TextLabels.Invisible then
+			if _G.Settings.Explosions.Invisible then
 				Inst.Visible = false
 				optimized = true
 			end
+		end
+
+	elseif className == "Clothing" or className == "SurfaceAppearance" or className == "BaseWrap"
+		or className == "Accessory" or className == "Hat" or className == "CharacterMesh" or className == "BodyColors"
+		or Inst:IsA("Clothing") or Inst:IsA("SurfaceAppearance") or Inst:IsA("BaseWrap") or Inst:IsA("Accessory")
+		or Inst:IsA("CharacterMesh") or Inst:IsA("BodyColors") then
+		if _G.Settings.Other["No Clothes"] then
+			Inst:Destroy()
+			destroyed = true
+			optimized = true
+		end
+
+	elseif Inst:IsA("Light") then
+		if _G.Settings.Other["Optimize Lighting"] or _G.Settings.Other["No Shadows"] then
+			Inst.Enabled = false
+			Inst:Destroy()
+			destroyed = true
+			optimized = true
+		end
+
+	elseif className == "TextLabel" then
+		if Inst:IsDescendantOf(Workspace) then
 			if _G.Settings.TextLabels.Destroy then
 				Inst:Destroy()
+				destroyed = true
 				optimized = true
+			else
+				if _G.Settings.TextLabels.LowerQuality then
+					Inst.Font = EnumFontSourceSans
+					Inst.TextScaled = false
+					Inst.RichText = false
+					Inst.TextSize = 14
+					optimized = true
+				end
+				if _G.Settings.TextLabels.Invisible then
+					Inst.Visible = false
+					optimized = true
+				end
 			end
 		end
 
-	-- Model
 	elseif className == "Model" then
 		if _G.Settings.Other["Low Quality Models"] then
 			pcall(function()
@@ -408,7 +434,6 @@ local function CheckIfBad(Inst)
 			optimized = true
 		end
 
-	-- BasePart (WedgePart, Part, TrussPart, etc.)
 	elseif Inst:IsA("BasePart") then
 		if _G.Settings.Other["Low Quality Parts"] then
 			Inst.Material = EnumMaterialSmoothPlastic
@@ -418,6 +443,10 @@ local function CheckIfBad(Inst)
 		end
 	end
 
+	if destroyed then
+		TotalDestroyed += 1
+	end
+
 	if optimized then
 		TotalOptimized += 1
 	else
@@ -425,8 +454,13 @@ local function CheckIfBad(Inst)
 	end
 end
 
--- FPS HUD UI GENERATION
+local hudGui = nil
 local function createFPSHUD()
+	if hudGui then
+		hudGui:Destroy()
+		hudGui = nil
+	end
+
 	local UIContainer = nil
 	local success, err = pcall(function()
 		UIContainer = game:GetService("CoreGui")
@@ -435,51 +469,87 @@ local function createFPSHUD()
 		UIContainer = ME:WaitForChild("PlayerGui")
 	end
 
+	local isGod = isGodModeActive()
+
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "PotatoFPSHUD"
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.Parent = UIContainer
+	hudGui = ScreenGui
 
-	local Frame = Instance.new("Frame")
-	Frame.Name = "MainFrame"
-	Frame.Size = UDim2.new(0, 110, 0, 35)
-	Frame.Position = UDim2.new(1, -125, 0, 15)
-	Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-	Frame.BackgroundTransparency = 0.45
-	Frame.BorderSizePixel = 0
-	Frame.Parent = ScreenGui
+	local MainFrame = Instance.new("Frame")
+	MainFrame.Name = "MainFrame"
+	MainFrame.Size = UDim2.new(0, 150, 0, 52)
+	MainFrame.Position = UDim2.new(1, -165, 0, 15)
+	MainFrame.BackgroundColor3 = isGod and Color3.fromRGB(20, 8, 8) or Color3.fromRGB(15, 15, 15)
+	MainFrame.BackgroundTransparency = 0.25
+	MainFrame.BorderSizePixel = 0
+	MainFrame.Active = true
+	MainFrame.Draggable = true
+	MainFrame.Parent = ScreenGui
 
 	local UICorner = Instance.new("UICorner")
-	UICorner.CornerRadius = UDim.new(0, 6)
-	UICorner.Parent = Frame
+	UICorner.CornerRadius = UDim.new(0, 8)
+	UICorner.Parent = MainFrame
 
 	local UIStroke = Instance.new("UIStroke")
 	UIStroke.Thickness = 1.5
 	UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	UIStroke.Parent = Frame
+	UIStroke.Color = isGod and Color3.fromRGB(255, 45, 45) or Color3.fromRGB(255, 255, 255)
+	UIStroke.Parent = MainFrame
 
-	local Label = Instance.new("TextLabel")
-	Label.Name = "FPSLabel"
-	Label.Size = UDim2.new(1, 0, 1, 0)
-	Label.BackgroundTransparency = 1
-	Label.Font = Enum.Font.RobotoMono
-	Label.TextSize = 14
-	Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Label.Text = "FPS: --"
-	Label.Parent = Frame
+	local ModeLabel = Instance.new("TextLabel")
+	ModeLabel.Name = "ModeLabel"
+	ModeLabel.Size = UDim2.new(1, 0, 0, 18)
+	ModeLabel.Position = UDim2.new(0, 0, 0, 4)
+	ModeLabel.BackgroundTransparency = 1
+	ModeLabel.Font = Enum.Font.GothamBold
+	ModeLabel.TextSize = 11
+	ModeLabel.TextColor3 = isGod and Color3.fromRGB(255, 60, 60) or Color3.fromRGB(120, 220, 255)
+	ModeLabel.Text = isGod and "🥔 GOD MODE (v" .. VERSION .. ")" or "🥔 POTATO MODE (v" .. VERSION .. ")"
+	ModeLabel.Parent = MainFrame
 
-	-- Rainbow border stroke animation
+	local FPSLabel = Instance.new("TextLabel")
+	FPSLabel.Name = "FPSLabel"
+	FPSLabel.Size = UDim2.new(0.5, 0, 0, 26)
+	FPSLabel.Position = UDim2.new(0, 8, 0, 22)
+	FPSLabel.BackgroundTransparency = 1
+	FPSLabel.Font = Enum.Font.RobotoMono
+	FPSLabel.TextSize = 15
+	FPSLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	FPSLabel.TextXAlignment = Enum.TextXAlignment.Left
+	FPSLabel.Text = "FPS: 
+	FPSLabel.Parent = MainFrame
+
+	local StatsLabel = Instance.new("TextLabel")
+	StatsLabel.Name = "StatsLabel"
+	StatsLabel.Size = UDim2.new(0.5, -8, 0, 26)
+	StatsLabel.Position = UDim2.new(0.5, 0, 0, 22)
+	StatsLabel.BackgroundTransparency = 1
+	StatsLabel.Font = Enum.Font.RobotoMono
+	StatsLabel.TextSize = 10
+	StatsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	StatsLabel.TextXAlignment = Enum.TextXAlignment.Right
+	StatsLabel.Text = string.format("Opt: %d", TotalOptimized)
+	StatsLabel.Parent = MainFrame
+
 	task.spawn(function()
 		local hue = 0
-		while task.wait(0.015) do
-			if not Frame or not Frame.Parent then break end
-			hue = (hue + 1) % 360
-			UIStroke.Color = Color3.fromHSV(hue / 360, 0.75, 0.85)
+		local godPulse = 0
+		while task.wait(0.02) do
+			if not MainFrame or not MainFrame.Parent then break end
+			if isGod then
+				godPulse = (godPulse + 0.05) % (math.pi * 2)
+				local brightness = 0.6 + 0.4 * math.sin(godPulse)
+				UIStroke.Color = Color3.fromRGB(math.floor(255 * brightness), math.floor(35 * brightness), math.floor(35 * brightness))
+			else
+				hue = (hue + 1) % 360
+				UIStroke.Color = Color3.fromHSV(hue / 360, 0.75, 0.85)
+			end
 		end
 	end)
 
-	-- FPS Counter Logic
 	local fps = 0
 	local frames = 0
 	local last = tick()
@@ -491,26 +561,32 @@ local function createFPSHUD()
 			fps = frames
 			frames = 0
 			last = now
-			Label.Text = string.format("FPS: %d", fps)
+			FPSLabel.Text = string.format("FPS: %d", fps)
+			StatsLabel.Text = isGod and string.format("Des: %d", TotalDestroyed) or string.format("Opt: %d", TotalOptimized)
 
 			if fps >= 120 then
-				Label.TextColor3 = Color3.fromRGB(0, 255, 128)
+				FPSLabel.TextColor3 = Color3.fromRGB(0, 255, 128)
 			elseif fps >= 60 then
-				Label.TextColor3 = Color3.fromRGB(255, 230, 64)
+				FPSLabel.TextColor3 = Color3.fromRGB(255, 230, 64)
 			else
-				Label.TextColor3 = Color3.fromRGB(255, 80, 80)
+				FPSLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 			end
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if not gameProcessed and (input.KeyCode == Enum.KeyCode.F6 or input.KeyCode == Enum.KeyCode.RightControl) then
+			MainFrame.Visible = not MainFrame.Visible
 		end
 	end)
 end
 
--- INITIALIZATION
-Notify("[Potato]", "Optimizing game...", 3)
-print("[Potato] Initialization started. Version: " .. VERSION)
+local modeName = isGodModeActive() and "🥔 GOD MODE" or "🥔 POTATO MODE"
+Notify(modeName, "Optimizing game graphics...", 3)
+print(string.format("[Potato] %s initialization started. Version: %s", modeName, VERSION))
 
 local startTime = tick()
 
--- Low Water Graphics
 if _G.Settings.Other["Low Water Graphics"] then
 	local terrain = Workspace:FindFirstChildOfClass("Terrain")
 	if terrain then
@@ -530,7 +606,6 @@ if _G.Settings.Other["Low Water Graphics"] then
 	end
 end
 
--- No Shadows + Lighting
 if _G.Settings.Other["No Shadows"] or _G.Settings.Other["Optimize Lighting"] then
 	Lighting.GlobalShadows = false
 	Lighting.FogStart = 9e9
@@ -550,13 +625,12 @@ if _G.Settings.Other["No Shadows"] or _G.Settings.Other["Optimize Lighting"] the
 
 	for _, v in ipairs(Lighting:GetChildren()) do
 		local cName = v.ClassName
-		if v:IsA("PostEffect") or cName == "Atmosphere" or cName == "Sky" or cName == "Clouds" then
+		if v:IsA("PostEffect") or cName == "Atmosphere" or cName == "Sky" or cName == "Clouds" or v:IsA("Light") then
 			v:Destroy()
 		end
 	end
 end
 
--- Low Rendering
 if _G.Settings.Other["Low Rendering"] then
 	pcall(function()
 		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
@@ -564,7 +638,6 @@ if _G.Settings.Other["Low Rendering"] then
 	end)
 end
 
--- Reset Materials
 if _G.Settings.Other["Reset Materials"] then
 	for _, v in pairs(MaterialService:GetChildren()) do
 		v:Destroy()
@@ -574,7 +647,6 @@ if _G.Settings.Other["Reset Materials"] then
 	end)
 end
 
--- Mute Sound Service
 if _G.Settings.Other["Mute Sounds"] then
 	SoundService.AmbientReverb = Enum.ReverbType.NoReverb
 	SoundService.DistanceFactor = 0
@@ -582,7 +654,6 @@ if _G.Settings.Other["Mute Sounds"] then
 	SoundService.RolloffScale = 0
 end
 
--- FPS Cap / Uncap
 if _G.Settings.Other["FPS Cap"] then
 	pcall(function()
 		if setfpscap then
@@ -595,14 +666,14 @@ if _G.Settings.Other["FPS Cap"] then
 	end)
 end
 
--- Clear Nil Instances
 if _G.Settings.Other.ClearNilInstances and getnilinstances then
-	for _, v in pairs(getnilinstances()) do
-		pcall(function() v:Destroy() end)
-	end
+	pcall(function()
+		for _, v in pairs(getnilinstances()) do
+			pcall(function() v:Destroy() end)
+		end
+	end)
 end
 
--- SCANNING SERVICES IN BATCHES
 local ServicesToScan = {
 	Workspace,
 	Lighting,
@@ -636,32 +707,61 @@ task.spawn(function()
 	local endTime = tick()
 	local totalTime = endTime - startTime
 
-	Notify("[Potato]", "✅ Optimization Complete\n\nLoaded in " .. string.format("%.2fs", totalTime), 5)
+	Notify(modeName, "✅ Optimization Complete\n\nLoaded in " .. string.format("%.2fs", totalTime), 5)
 
-	print(string.rep("-", 40))
-	print("[Potato] Optimization Report (v" .. VERSION .. ")")
-	print(string.rep("-", 40))
+	print(string.rep("-", 45))
+	print(string.format("[Potato] %s Report (v%s)", modeName, VERSION))
+	print(string.rep("-", 45))
 	print("- Status: ✅ Optimization Complete")
+	print("- Mode: " .. modeName)
 	print("- Services Scanned:")
 	for _, s in ipairs(ServicesToScan) do
 		print("  • " .. s.Name)
 	end
 	print(string.format("- Total Objects Scanned: %d", TotalScanned))
 	print(string.format("- Objects Optimized: %d", TotalOptimized))
+	print(string.format("- Objects Destroyed: %d", TotalDestroyed))
 	print(string.format("- Objects Skipped: %d", TotalSkipped))
 	print(string.format("- MeshParts Processed: %d", MeshPartsProcessed))
 	print(string.format("- Sounds Muted: %d", SoundsMuted))
-	print(string.format("- Particles Disabled: %d", ParticlesDisabled))
+	print(string.format("- Particles Disabled/Destroyed: %d", ParticlesDisabled))
 	print(string.format("- Total Optimization Time: %.4f seconds", totalTime))
-	print(string.rep("-", 40))
+	print(string.rep("-", 45))
 
-	-- Create FPS HUD UI
 	createFPSHUD()
 end)
 
--- LISTEN FOR NEW INSTANCES
 game.DescendantAdded:Connect(function(obj)
 	task.defer(function()
 		CheckIfBad(obj)
 	end)
 end)
+
+if _G.Settings.Other.AutoReapply ~= false then
+	local interval = tonumber(_G.Settings.Other.AutoReapplyInterval) or 15
+	task.spawn(function()
+		while task.wait(interval) do
+			for _, service in ipairs(ServicesToScan) do
+				local success, descendants = pcall(function()
+					return service:GetDescendants()
+				end)
+				if success and descendants then
+					for i, v in ipairs(descendants) do
+						CheckIfBad(v)
+						if i % 1000 == 0 then
+							task.wait()
+						end
+					end
+				end
+			end
+
+			if _G.Settings.Other.ClearNilInstances and getnilinstances then
+				pcall(function()
+					for _, v in pairs(getnilinstances()) do
+						pcall(function() v:Destroy() end)
+					end
+				end)
+			end
+		end
+	end)
+end
